@@ -207,7 +207,7 @@ struct pokesim_core {
 
 pokesim_core::mem_id_t pokesim_core::send_mem_req(unsigned long addr, bool wr) {
   // Hash the address.
-  addr = (addr&(~0x3f) * 1103515245 + 12345)&0xffffffc0l | (addr & 0x3f);
+  // addr = (addr&(~0x3f) * 1103515245 + 12345)&0xffffffc0l | (addr & 0x3f);
 
   cout << "Mem req: " << std::dec << addr << endl;
 
