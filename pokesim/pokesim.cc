@@ -39,7 +39,7 @@ struct pokesim_core {
     string archString, string coreFile, ostream &out,
     Interfaces::SimpleMem *link, bool basic = true
   ):
-    arch(archString), dec(arch), mu(4096, arch.getWordSize()),
+    arch(archString), dec(arch), mu(4096, arch.getWordSize(), true),
     core(arch, dec, mu, basic), mem(coreFile.c_str(), arch.getWordSize()),
     console(arch.getWordSize(), out, core), cyc(0),
     ldcount(0), stcount(0), fetchcount(0), memLink(link)
