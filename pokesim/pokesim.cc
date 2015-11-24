@@ -34,12 +34,14 @@ namespace SST {
 namespace pokesim {
 const int NO_WARP = -1, REQ_MAX = 20;
 
+// #define ADDR_HASH
+
 struct pokesim_core {
   pokesim_core(
     string archString, string coreFile, ostream &out,
     Interfaces::SimpleMem *link, bool basic = true
   ):
-    arch(archString), dec(arch), mu(4096, arch.getWordSize()),
+    arch(archString), dec(arch), mu(4096, arch.getWordSize(), true),
     core(arch, dec, mu, basic), mem(coreFile.c_str(), arch.getWordSize()),
     console(arch.getWordSize(), out, core), cyc(0),
     ldcount(0), stcount(0), fetchcount(0), memLink(link)
@@ -206,8 +208,15 @@ struct pokesim_core {
 };
 
 pokesim_core::mem_id_t pokesim_core::send_mem_req(unsigned long addr, bool wr) {
+  #ifdef ADDR_HASH
   // Hash the address.
-  // addr = (addr&(~0x3f) * 1103515245 + 12345)&0xffffffc0l | (addr & 0x3f);
+  {
+    unsigned addr0(addr&0xff), addr1((addr >> 8)&0xff),
+             addr2((addr >> 16)&0xff), addr3((addr >> 24)&0xff);
+    addr = (addr0 << 24) | (addr1 << 16) | (addr2 << 8) | (addr3);
+    addr ^= (addr2 << 23) ^ (addr3 << 17) ^ (addr0 << 7) ^ (addr1 << 2);
+  }
+  #endif
 
   cout << "Mem req: " << std::dec << addr << endl;
 
@@ -261,7 +270,7 @@ pokesim::pokesim(ComponentId_t id, Params &par):
   Component(id)
 {
   bool mem_init_found;
-  string arch_string(par.find_string("arch", "32w32/32/32/32")),
+  string arch_string(par.find_string("arch", "4w32/32/32/32")),
          mem_init_file(par.find_string("mem_init", "", mem_init_found)),
          clock_freq_string(par.find_string("clock_freq", "2GHz"));
   if (!mem_init_found) {
@@ -326,7 +335,7 @@ static Component* create_pokesim(ComponentId_t id, Params &p) {
 }
 
 static const ElementInfoParam component_params[] = {
-  {"arch", "Arch ID string", "32w32/32/32/32"},
+  {"arch", "Arch ID string", "4w32/32/32/32"},
   {"mem_init", "Memory initiialization file.", ""},
   {"clock_freq", "Clock frequency.", "2GHz"},
   {NULL, NULL, NULL}
