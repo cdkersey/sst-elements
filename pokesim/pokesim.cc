@@ -24,6 +24,8 @@
 #include <iostream>
 #include <iomanip>
 
+#include <sstream>
+
 using namespace SST;
 using namespace SST::Interfaces;
 using namespace SST::pokesim;
@@ -36,13 +38,13 @@ const int NO_WARP = -1, REQ_MAX = 20;
 
 struct pokesim_core {
   pokesim_core(
-    string archString, string coreFile, ostream &out,
+    string archString, string coreFile, ostream &out, unsigned long base_addr,
     Interfaces::SimpleMem *link, bool basic = true
   ):
     arch(archString), dec(arch), mu(4096, arch.getWordSize(), true),
     core(arch, dec, mu, basic), mem(coreFile.c_str(), arch.getWordSize()),
     console(arch.getWordSize(), out, core), cyc(0),
-    ldcount(0), stcount(0), fetchcount(0), memLink(link)
+    ldcount(0), stcount(0), fetchcount(0), memLink(link), base_addr(base_addr)
    {
     mu.attach(mem, 0);
     mu.attach(console, 0x80000000);
@@ -203,13 +205,20 @@ struct pokesim_core {
 
   /* Experimental: queue up outgoing memory requests */
   std::queue<SimpleMem::Request *> req_q;
+
+  /* Memory offset. */
+  unsigned long base_addr;
 };
 
 pokesim_core::mem_id_t pokesim_core::send_mem_req(unsigned long addr, bool wr) {
   // Hash the address.
   // addr = (addr&(~0x3f) * 1103515245 + 12345)&0xffffffc0l | (addr & 0x3f);
 
-  cout << "Mem req: " << std::dec << addr << endl;
+  addr += base_addr;
+
+  // addr &= ~63ull; // Align to cache line boundary.
+  
+  // cout << "Mem req: " << std::dec << addr << endl;
 
   SimpleMem::Request *r = new SimpleMem::Request(
     wr ? SimpleMem::Request::Write : SimpleMem::Request::Read, addr, 4, 0
@@ -230,7 +239,7 @@ void pokesim_core::drain_mem_queue() {
 
 void pokesim_core::rec_mem_req(pokesim_core::mem_id_t m) {
   unsigned long latency(cyc - mem_table[m].timestamp);
-  cout << "Got mem resp. Latency: " << latency << " cycles." << endl;
+  // cout << "Got mem resp. Latency: " << latency << " cycles." << endl;
 
   if (mem_table[m].fetch) {
     fetched_q.push(mem_table[m].warp);
@@ -263,7 +272,8 @@ pokesim::pokesim(ComponentId_t id, Params &par):
   bool mem_init_found;
   string arch_string(par.find_string("arch", "32w32/32/32/32")),
          mem_init_file(par.find_string("mem_init", "", mem_init_found)),
-         clock_freq_string(par.find_string("clock_freq", "2GHz"));
+         clock_freq_string(par.find_string("clock_freq", "2GHz")),
+         base_addr_string(par.find_string("base_addr", "0"));
   if (!mem_init_found) {
     Simulation::getSimulation()->
       getSimulationOutput().fatal(CALL_INFO, -1, "No memory init file.");
@@ -286,7 +296,10 @@ pokesim::pokesim(ComponentId_t id, Params &par):
         CALL_INFO, -1, "Unable to initialize Link memLink\n"
   );
 
-  p = new pokesim_core(arch_string, mem_init_file, cout, memLink);
+  istringstream ba_ss(base_addr_string);
+  ba_ss >> base_addr;
+
+  p = new pokesim_core(arch_string, mem_init_file, cout, base_addr, memLink);
 }
 
 // Used by serialization.
@@ -329,6 +342,7 @@ static const ElementInfoParam component_params[] = {
   {"arch", "Arch ID string", "32w32/32/32/32"},
   {"mem_init", "Memory initiialization file.", ""},
   {"clock_freq", "Clock frequency.", "2GHz"},
+  {"base_addr", "Base address.", "0"},
   {NULL, NULL, NULL}
 };
 

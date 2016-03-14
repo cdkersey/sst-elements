@@ -67,6 +67,8 @@ namespace pokesim {
 
     Output out;
 
+    unsigned long base_addr;
+
     pokesim_core *p;
 };
 
