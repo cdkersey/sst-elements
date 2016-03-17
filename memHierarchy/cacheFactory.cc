@@ -50,9 +50,10 @@ Cache* Cache::cacheFactory(ComponentId_t id, Params &params){
     string frequency            = params.find_string("cache_frequency", "" );            //Hertz
     string replacement          = params.find_string("replacement_policy", "LRU");
     int associativity           = params.find_integer("associativity", -1);
+    int hashFunc                = params.find_integer("hash_function", 0);
     string sizeStr              = params.find_string("cache_size", "");                  //Bytes
     int lineSize                = params.find_integer("cache_line_size", -1);            //Bytes
-    int accessLatency           = params.find_integer("access_latency_cycles", -1);                 //ns
+    int accessLatency           = params.find_integer("access_latency_cycles", -1);      //ns
     int mshrSize                = params.find_integer("mshr_num_entries", -1);           //number of entries
     string preF                 = params.find_string("prefetcher");
     int L1int                   = params.find_integer("L1", 0);
@@ -128,7 +129,14 @@ Cache* Cache::cacheFactory(ComponentId_t id, Params &params){
     if (dirAtNextLvl) bottomNetwork = "directory";
     
     /* ---------------- Initialization ----------------- */
-    HashFunction* ht = new PureIdHashFunction;
+    HashFunction* ht;
+    if (hashFunc == 1) {
+      ht = new LinearHashFunction;
+    } else if (hashFunc == 2) {
+      ht = new XorHashFunction;
+    } else {
+      ht = new PureIdHashFunction;
+    }
     
     long cacheSize  = SST::MemHierarchy::convertToBytes(sizeStr);
     uint numLines = cacheSize/lineSize;
@@ -166,7 +174,10 @@ Cache* Cache::cacheFactory(ComponentId_t id, Params &params){
         else dbg->fatal(CALL_INFO, -1, "Invalid param: directory_replacement_policy - supported policies are 'lru', 'lfu', 'random', 'mru', and 'nmru'. You specified %s.\n", replacement.c_str());
         cacheArray = new DualSetAssociativeArray(dbg, static_cast<uint>(lineSize), ht, true, dirNumEntries, dirAssociativity, dirReplManager, numLines, associativity, replManager);
     }
-        
+    
+    // Auto-detect LLC if directory is present
+    if (bottomNetwork == "directory") LLC = true; 
+
     CacheConfig config = {frequency, cacheArray, dirArray, protocol, dbg, replManager, numLines,
 	static_cast<uint>(lineSize),
 	static_cast<uint>(mshrSize), L1, LLC, LL, bottomNetwork, topNetwork, statGroupIds,
