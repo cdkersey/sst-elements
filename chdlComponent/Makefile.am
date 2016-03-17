@@ -16,4 +16,3 @@ libchdlComponent_la_SOURCES = \
 EXTRA_DIST = README test/acpu.nand test/test.py
 
 libchdlComponent_la_LDFLAGS = -module -avoid-version $(CHDL_LDFLAGS)
-libchdlComponent_la_LIBADD = -lchdl -lchdl-module
