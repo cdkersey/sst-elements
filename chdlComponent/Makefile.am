@@ -12,7 +12,8 @@ comp_LTLIBRARIES = libchdlComponent.la
 libchdlComponent_la_SOURCES = \
 	chdlComponent.h \
 	chdlComponent.cc
+	atlsim.cpp
 
-EXTRA_DIST = README test/acpu.nand test/test.py
+EXTRA_DIST = 
 
 libchdlComponent_la_LDFLAGS = -module -avoid-version $(CHDL_LDFLAGS)
